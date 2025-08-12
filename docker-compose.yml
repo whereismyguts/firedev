@@ -7,15 +7,15 @@ services:
     env_file:
       - .env
     environment:
-      - PORT=8000
+      - PORT=8182
       - FIREBASE_DATABASE_URL=${NEXT_PUBLIC_FIREBASE_DATABASE_URL}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-adminsdk.json
     ports:
-      - "8000:8000"
+      - "8182:8182"
     volumes:
       - ./secrets/firebase-adminsdk.json:/app/firebase-adminsdk.json:ro
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8182/health"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -30,18 +30,18 @@ services:
       - .env
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - BACKEND_URL=http://backend:8000
+      - BACKEND_URL=http://backend:8182
       - FIREBASE_DATABASE_URL=${NEXT_PUBLIC_FIREBASE_DATABASE_URL}
     restart: unless-stopped
 
-  web:
-    build: ./web
-    container_name: firedev-web
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    env_file:
-      - .env
+  # web:
+  #   build: ./web
+  #   container_name: firedev-web
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - backend
+  #   env_file:
+  #     - .env
 
 

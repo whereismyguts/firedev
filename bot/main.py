@@ -175,7 +175,7 @@ async def handle_category_selection(callback: types.CallbackQuery):
                         category_emoji = {"fire": "🔥", "volunteer": "👤", "brigade": "🚒", "plane": "✈️"}
                         await callback.message.edit_text(
                             f"✅ **{category_emoji.get(category, '📍')} {category} location saved!**\n\n"
-                            f"View the map: https://whereismyguts.github.io/firedev/"
+                            f"View the map: https://firedev.aitomaton.online/"
                         )
                     else:
                         await callback.message.edit_text("❌ Failed to save location. Try again.")
