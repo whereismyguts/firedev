@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fire Coordination Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+      html, body, #map { height: 100%; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      const firebaseConfig = {
+        apiKey: "${NEXT_PUBLIC_FIREBASE_API_KEY}",
+        authDomain: "${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}",
+        databaseURL: "${NEXT_PUBLIC_FIREBASE_DATABASE_URL}",
+        projectId: "${NEXT_PUBLIC_FIREBASE_PROJECT_ID}",
+        storageBucket: "${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}",
+        messagingSenderId: "${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}",
+        appId: "${NEXT_PUBLIC_FIREBASE_APP_ID}"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const dbRef = firebase.database().ref('locations');
+
+      const map = L.map('map').setView([37.5, -122.3], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      const icons = {
+        fire: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f525.png', iconSize: [28, 28] }),
+        volunteer: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9cd.png', iconSize: [28, 28] }),
+        brigade: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f692.png', iconSize: [28, 28] }),
+        plane: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2708.png', iconSize: [28, 28] })
+      };
+
+      const markers = {};
+
+      dbRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        // Remove markers no longer present
+        Object.keys(markers).forEach(id => {
+          if (!data[id]) {
+            map.removeLayer(markers[id]);
+            delete markers[id];
+          }
+        });
+        for (const id in data) {
+          const loc = data[id];
+          const pos = [loc.lat, loc.lon];
+          if (markers[id]) {
+            markers[id].setLatLng(pos);
+          } else {
+            const icon = icons[loc.category] || undefined;
+            markers[id] = L.marker(pos, icon ? { icon } : undefined)
+              .addTo(map)
+              .bindPopup(`Category: ${loc.category}<br>User: ${loc.user}<br>Action: ${loc.action}`);
+          }
+        }
+        const group = L.featureGroup(Object.values(markers));
+        if (Object.values(markers).length) {
+          map.fitBounds(group.getBounds().pad(0.2));
+        }
+      });
+    </script>
+  </body>
+</html>

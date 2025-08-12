@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Node/Web
+node_modules/
+dist/
+build/
+
+# Environment files with sensitive data
+.env
+.env.local
+.env.production
+
+# Firebase Admin SDK (NEVER COMMIT - contains private keys)
+secrets/firebase-adminsdk.json
+**/firebase-adminsdk*.json
+service-account*.json
+
+# But keep the secrets directory structure
+!secrets/.keep
+
+# Docker & Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp

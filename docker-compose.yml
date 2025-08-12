@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    container_name: firedev-backend
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+      - FIREBASE_DATABASE_URL=${NEXT_PUBLIC_FIREBASE_DATABASE_URL}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-adminsdk.json
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./secrets/firebase-adminsdk.json:/app/firebase-adminsdk.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  bot:
+    build: ./bot
+    container_name: firedev-bot
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - BACKEND_URL=http://backend:8000
+      - FIREBASE_DATABASE_URL=${NEXT_PUBLIC_FIREBASE_DATABASE_URL}
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    container_name: firedev-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    env_file:
+      - .env
+
+

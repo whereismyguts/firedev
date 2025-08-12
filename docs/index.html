@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fire Coordination Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+      html, body, #map { height: 100%; margin: 0; font-family: Arial, sans-serif; }
+      .info-panel {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        z-index: 1000;
+        max-width: 200px;
+      }
+      .legend {
+        margin-top: 10px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 5px 0;
+      }
+      .legend-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div class="info-panel">
+      <h3>🔥 Fire Coordination</h3>
+      <div class="legend">
+        <div class="legend-item">
+          <img class="legend-icon" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f525.png" alt="Fire">
+          Fire Source
+        </div>
+        <div class="legend-item">
+          <img class="legend-icon" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9cd.png" alt="Volunteer">
+          Volunteer
+        </div>
+        <div class="legend-item">
+          <img class="legend-icon" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f692.png" alt="Brigade">
+          Fire Brigade
+        </div>
+        <div class="legend-item">
+          <img class="legend-icon" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2708.png" alt="Plane">
+          Fireplane
+        </div>
+      </div>
+      <div style="margin-top: 10px; font-size: 12px; color: #666;">
+        Real-time updates via Telegram bot
+      </div>
+    </div>
+    
+    <!-- Load Firebase config -->
+    <script src="config.js"></script>
+    <script>
+      // Initialize Firebase with config from config.js
+      firebase.initializeApp(firebaseConfig);
+      const dbRef = firebase.database().ref('locations');
+
+      const map = L.map('map').setView([37.5, -122.3], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      const icons = {
+        fire: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f525.png', iconSize: [28, 28] }),
+        volunteer: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9cd.png', iconSize: [28, 28] }),
+        brigade: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f692.png', iconSize: [28, 28] }),
+        plane: L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2708.png', iconSize: [28, 28] })
+      };
+
+      const markers = {};
+
+      dbRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        // Remove markers no longer present
+        Object.keys(markers).forEach(id => {
+          if (!data[id]) {
+            map.removeLayer(markers[id]);
+            delete markers[id];
+          }
+        });
+        
+        for (const id in data) {
+          const loc = data[id];
+          const pos = [loc.lat, loc.lon];
+          if (markers[id]) {
+            // Update existing marker position (for live locations)
+            markers[id].setLatLng(pos);
+            // Update popup content with latest timestamp
+            markers[id].setPopupContent(
+              `<strong>${loc.category.charAt(0).toUpperCase() + loc.category.slice(1)}</strong><br>` +
+              `User: ${loc.user}<br>` +
+              `Status: ${loc.action}<br>` +
+              `Updated: ${new Date(loc.timestamp).toLocaleString()}`
+            );
+          } else {
+            // Create new marker
+            const icon = icons[loc.category] || undefined;
+            markers[id] = L.marker(pos, icon ? { icon } : undefined)
+              .addTo(map)
+              .bindPopup(
+                `<strong>${loc.category.charAt(0).toUpperCase() + loc.category.slice(1)}</strong><br>` +
+                `User: ${loc.user}<br>` +
+                `Status: ${loc.action}<br>` +
+                `Time: ${new Date(loc.timestamp).toLocaleString()}`
+              );
+          }
+        }
+        
+        // Auto-fit map to show all markers with some padding
+        const group = L.featureGroup(Object.values(markers));
+        if (Object.values(markers).length) {
+          map.fitBounds(group.getBounds().pad(0.2));
+        }
+      });
+
+      // Handle Firebase connection errors
+      dbRef.on('value', () => {}, (error) => {
+        console.error('Firebase connection error:', error);
+        alert('Failed to connect to real-time database. Please check your internet connection.');
+      });
+    </script>
+  </body>
+</html>
