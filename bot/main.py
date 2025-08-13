@@ -26,6 +26,7 @@ dp = Dispatcher()
 # Store user data in memory (for production, consider Redis)
 user_data = {}
 
+
 def get_category_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="🔥 Fire Source", callback_data="fire")
@@ -34,6 +35,7 @@ def get_category_keyboard():
     builder.button(text="✈️ Fireplane Flight", callback_data="plane")
     builder.adjust(1)
     return builder.as_markup()
+
 
 @dp.message(CommandStart())
 async def start_command(message: types.Message):
@@ -45,6 +47,7 @@ async def start_command(message: types.Message):
         "/cancel - Cancel current operation\n"
         "/stop_live - Stop live location updates"
     )
+
 
 @dp.message(Command("help"))
 async def help_command(message: types.Message):
@@ -58,11 +61,13 @@ async def help_command(message: types.Message):
         "Use /stop_live to end live updates."
     )
 
+
 @dp.message(Command("cancel"))
 async def cancel_command(message: types.Message):
     user_id = message.from_user.id
     user_data.pop(user_id, None)
     await message.answer("❌ Operation canceled.")
+
 
 @dp.message(Command("stop_live"))
 async def stop_live_command(message: types.Message):
@@ -71,21 +76,22 @@ async def stop_live_command(message: types.Message):
         user_data[user_id]['live_active'] = False
     await message.answer("⏹️ Live location updates stopped.")
 
+
 @dp.message(F.location)
 async def handle_location(message: types.Message):
     user_id = message.from_user.id
     location = message.location
-    
+
     # Initialize user data if needed
     if user_id not in user_data:
         user_data[user_id] = {}
-    
+
     # Store location
     user_data[user_id]['last_location'] = {
-        'lat': location.latitude, 
+        'lat': location.latitude,
         'lon': location.longitude
     }
-    
+
     # Check if this is a live location
     if location.live_period:
         user_data[user_id]['live_id'] = user_data[user_id].get('live_id') or str(uuid.uuid4())
@@ -102,38 +108,40 @@ async def handle_location(message: types.Message):
             reply_markup=get_category_keyboard()
         )
 
+
 @dp.edited_message(F.location)
 async def handle_edited_location(edited_message: types.Message):
     """Handle live location updates"""
     user_id = edited_message.from_user.id
     location = edited_message.location
-    
+    logger.info(f"Received live location update from user {edited_message.from_user}: {location}")
     if user_id not in user_data:
         return
-    
+
     # Update stored location
     user_data[user_id]['last_location'] = {
         'lat': location.latitude,
         'lon': location.longitude
     }
-    
+
     # If already categorized and live tracking is active, send update
-    if (user_data[user_id].get('live_active') and 
-        user_data[user_id].get('category')):
+    if (user_data[user_id].get('live_active') and
+            user_data[user_id].get('category')):
         await send_location_update(user_id, edited_message.from_user)
+
 
 @dp.callback_query(F.data.in_(["fire", "volunteer", "brigade", "plane"]))
 async def handle_category_selection(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     category = callback.data
-    
+
     if user_id not in user_data or 'last_location' not in user_data[user_id]:
         await callback.answer("❌ No location found. Please send your location first.")
         return
-    
+
     user_data[user_id]['category'] = category
     location = user_data[user_id]['last_location']
-    
+
     # Prepare payload
     now = datetime.utcnow().isoformat()
     payload = {
@@ -144,14 +152,14 @@ async def handle_category_selection(callback: types.CallbackQuery):
         'timestamp': now,
         'action': 'active'
     }
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             if user_data[user_id].get('live_active'):
                 # Use PUT for live locations with fixed ID
                 live_id = user_data[user_id]['live_id']
                 async with session.put(
-                    f"{BACKEND_URL}/report/{live_id}", 
+                    f"{BACKEND_URL}/report/{live_id}",
                     json=payload,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -179,23 +187,24 @@ async def handle_category_selection(callback: types.CallbackQuery):
                         )
                     else:
                         await callback.message.edit_text("❌ Failed to save location. Try again.")
-        
+
         await callback.answer()
-        
+
     except Exception as e:
         logger.exception("Failed to save location: %s", e)
         await callback.message.edit_text("❌ Error saving location. Check if backend is running.")
         await callback.answer()
 
+
 async def send_location_update(user_id: int, user: types.User):
     """Send live location update to backend"""
     if user_id not in user_data:
         return
-    
+
     location = user_data[user_id]['last_location']
     category = user_data[user_id]['category']
     live_id = user_data[user_id]['live_id']
-    
+
     payload = {
         'category': category,
         'lat': location['lat'],
@@ -204,7 +213,7 @@ async def send_location_update(user_id: int, user: types.User):
         'timestamp': datetime.utcnow().isoformat(),
         'action': 'active'
     }
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.put(
@@ -216,6 +225,7 @@ async def send_location_update(user_id: int, user: types.User):
                     logger.warning(f"Live update failed: {response.status}")
     except Exception as e:
         logger.warning(f"Live update failed: {e}")
+
 
 async def main():
     logger.info("Starting Fire Coordination Bot...")
