@@ -16,7 +16,7 @@ services:
       - ./secrets/firebase-adminsdk.json:/app/firebase-adminsdk.json:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8182/health"]
-      interval: 15s
+      interval: 1h
       timeout: 5s
       retries: 3
 
